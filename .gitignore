@@ -2,6 +2,7 @@
 *__pycache__/
 *templates/
 *data/
+*media/
 *.env
 *.venv
 *env/
