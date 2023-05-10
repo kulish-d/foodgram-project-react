@@ -3,7 +3,7 @@ from django.db.models import F
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
-from rest_framework.validators import UniqueValidator
+from rest_framework.validators import UniqueValidator, UniqueTogetherValidator
 
 from .models import Ingredient, IngredientAmount, Recipe, Tag
 from users.models import Follow
@@ -23,6 +23,24 @@ class IngredientSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class IngredientAmountSerializer(serializers.ModelSerializer):
+    id = serializers.ReadOnlyField(source='ingredient.id')
+    name = serializers.ReadOnlyField(source='ingredient.name')
+    measurement_unit = serializers.ReadOnlyField(
+        source='ingredient.measurement_unit'
+    )
+
+    class Meta:
+        model = IngredientAmount
+        fields = ('id', 'name', 'measurement_unit', 'amount')
+        validators = [
+            UniqueTogetherValidator(
+                queryset=IngredientAmount.objects.all(),
+                fields=['ingredient', 'recipe']
+            )
+        ]
+
+
 class AddIngredientToRecipeSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()
     ingredient = serializers.ReadOnlyField(source='ingredient.name')
@@ -30,6 +48,13 @@ class AddIngredientToRecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = IngredientAmount
         fields = ['id', 'ingredient', 'amount']
+
+    def validate(self, data):
+        if int(data.get('amount', None)) <= 0:
+            raise serializers.ValidationError(
+                ('Минимальное количество ингридиентов 1')
+            )
+        return data
 
 
 class CustomUserCreateSerializer(UserCreateSerializer):
@@ -65,7 +90,11 @@ class CustomUserSerializer(UserSerializer):
 class RecipeReadSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True)
     author = CustomUserSerializer()
-    ingredients = serializers.SerializerMethodField()
+    ingredients = IngredientAmountSerializer(
+        source='ingredientamount_set',
+        many=True,
+        read_only=True,
+    )
     is_favorited = serializers.BooleanField(default=False)
     is_in_shopping_cart = serializers.BooleanField(default=False)
 
@@ -74,11 +103,6 @@ class RecipeReadSerializer(serializers.ModelSerializer):
         fields = ('id', 'tags', 'author', 'ingredients',
                   'is_favorited', 'is_in_shopping_cart', 'name', 'image',
                   'text', 'cooking_time',)
-
-    def get_ingredients(self, obj):
-        return obj.ingredients.values(
-            'id', 'name', 'measurement_unit', amount=F('recipe__amount')
-        )
 
 
 class RecipeWriteSerializer(serializers.ModelSerializer):
@@ -97,29 +121,10 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         )
 
     def validate(self, data):
-        ingredients = data.get('ingredients', None)
-        ingredients_set = set()
-        for ingredient in ingredients:
-            if type(ingredient.get('amount')) is str:
-                if not ingredient.get('amount').isdigit():
-                    raise serializers.ValidationError(
-                        ('Количество ингредиента должно быть числом')
-                    )
-            if int(ingredient.get('amount')) <= 0:
-                raise serializers.ValidationError(
-                    ('Минимальное количество ингридиентов 1')
-                )
-            if int(data['cooking_time']) <= 0:
-                raise serializers.ValidationError(
-                    'Время готовки должно быть > 0 '
-                )
-            ingredient_id = ingredient.get('id')
-            if ingredient_id in ingredients_set:
-                raise serializers.ValidationError(
-                    'Ингредиент не должен повторяться.'
-                )
-            ingredients_set.add(ingredient_id)
-        data['ingredients'] = ingredients
+        if int(data['cooking_time']) <= 0:
+            raise serializers.ValidationError(
+                'Время готовки должно быть > 0 '
+            )
         return data
 
     def add_tags_ingredients(self, instance, **validated_data):

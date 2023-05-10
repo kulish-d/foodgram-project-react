@@ -19,7 +19,7 @@ class Tag(models.Model):
         ordering = ['-id']
 
     def __str__(self):
-        return f'{self.name}'
+        return self.name
 
 
 class Ingredient(models.Model):
@@ -37,7 +37,7 @@ class Ingredient(models.Model):
                                     name='unique_for_ingredient')]
 
     def __str__(self):
-        return f'{self.name}'
+        return self.name
 
 
 class IngredientAmount(models.Model):
@@ -111,7 +111,7 @@ class Recipe(models.Model):
         ordering = ('-pub_date', )
 
     def __str__(self):
-        return f'{self.name}'
+        return self.name
 
 
 class Cart(models.Model):
@@ -162,4 +162,4 @@ class Favorite(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.user}'
+        return self.user
