@@ -115,17 +115,12 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         fields = ('author', 'tags', 'ingredients', 'name',
                   'image', 'text', 'cooking_time')
 
-    def get_ingredients(self, obj):
-        return obj.ingredients.values(
-            'id', 'name', 'measurement_unit', amount=F('recipe__amount')
-        )
-
-    def validate(self, data):
-        if int(data['cooking_time']) <= 0:
+    def validate_cooking_time(self, value):
+        if int(value) <= 0:
             raise serializers.ValidationError(
                 'Время готовки должно быть > 0 '
             )
-        return data
+        return value
 
     def add_tags_ingredients(self, instance, **validated_data):
         ingredients = validated_data['ingredients']
