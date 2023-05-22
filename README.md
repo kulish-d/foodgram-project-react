@@ -1,6 +1,10 @@
 # Продуктовый помощник - Foodgram
 
-### http://84.252.131.60/
+### http://158.160.8.172/
+
+Доступ к админке:
+yandex@shmail.com
+yandex
 
 
 ### To deploy this project need the next actions:
